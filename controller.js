@@ -136,7 +136,7 @@ function refreshAt(hours, minutes, seconds) {
           return true;
         }
       }
-      , { timeout: 300000 });
+      , { timeout: 0 });
     await page.evaluate(() => {
       document.querySelector('a[title="Next"]').click();
     });
