@@ -61,6 +61,7 @@ function refreshAt(hours, minutes, seconds) {
     let sec = Number(process.argv[6]);
     let gym = (process.argv[7] === "arc") ? 0 : 1;
     let flag = (process.argv[8] === "t") ? false : true;
+    let r = (process.argv[8] === "r") ? true : false;
     const browser = await puppeteer.launch({ headless: flag });
     const page = await browser.newPage();
     await page.setViewport({ width: 1000, height: 1600 });
@@ -83,51 +84,69 @@ function refreshAt(hours, minutes, seconds) {
       slot[0].childNodes[3].childNodes[3].childNodes[1].click();
     }, date, time);
     await page.waitForSelector(".bm-course-primary-event-name.bm-event-name-h1");
-    await page.evaluate((hr, min, sec) => {
-      let book = (hours, minutes, seconds) => {
-        var now = new Date();
-        var then = new Date();
+    if (r) {
+      await page.evaluate((hr, min, sec) => {
+        let book = (hours, minutes, seconds) => {
+          var now = new Date();
+          var then = new Date();
     
-        function clickRegister() {
-          document.getElementsByClassName("bm-button bm-book-button")[0].click();
+          function clickRegister() {
+            document.getElementsByClassName("bm-button bm-book-button")[0].click();
+          }
+    
+          function sleepWhileLoad() {
+            let currNum = 0;
+            do {
+              currNum = currNum + 1;
+            } while (document.readyState !== "complete");
+          }
+    
+          function sleep(milliseconds) {
+            const date = Date.now();
+            let currentDate = null;
+            do {
+              currentDate = Date.now();
+            } while (currentDate - date < milliseconds);
+          }
+    
+          if (now.getHours() > hours ||
+            (now.getHours() == hours && now.getMinutes() > minutes) ||
+            now.getHours() == hours && now.getMinutes() == minutes && now.getSeconds() >= seconds) {
+            then.setDate(now.getDate() + 1);
+          }
+          then.setHours(hours);
+          then.setMinutes(minutes);
+          then.setSeconds(seconds);
+    
+          var timeout = (then.getTime() - now.getTime());
+          setTimeout(function () {
+            window.location.reload(true);
+            // sleep(500);
+            // clickRegister();
+          }, timeout);
         }
-    
-        function sleepWhileLoad() {
-          let currNum = 0;
-          do {
-            currNum = currNum + 1;
-          } while (document.readyState !== "complete");
-        }
-    
-        function sleep(milliseconds) {
-          const date = Date.now();
-          let currentDate = null;
-          do {
-            currentDate = Date.now();
-          } while (currentDate - date < milliseconds);
-        }
-    
-        if (now.getHours() > hours ||
-          (now.getHours() == hours && now.getMinutes() > minutes) ||
-          now.getHours() == hours && now.getMinutes() == minutes && now.getSeconds() >= seconds) {
-          then.setDate(now.getDate() + 1);
-        }
-        then.setHours(hours);
-        then.setMinutes(minutes);
-        then.setSeconds(seconds);
-    
-        var timeout = (then.getTime() - now.getTime());
-        setTimeout(function () {
-          window.location.reload(true);
-          sleep(500);
-          clickRegister();
-        }, timeout);
-      }
-      book(hr, min, sec);
+        book(hr, min, sec);
 
-    }, hr, min, sec);
+      }, hr, min, sec);
+    }
     // sleep(20000);
     // await page.mouse.click(897, 174);
+
+    await page.waitForFunction(
+      () => {
+        if (document.querySelector('.bm-button.bm-book-button') === null || document.querySelector('.bm-button.bm-book-button') === undefined) {
+          return false;
+        } else {
+          if (document.querySelector('.bm-button.bm-book-button').innerText.includes("REGISTER NOW")) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+      , { timeout: 0 });
+    
+    await page.click('.bm-button.bm-book-button');
     await page.waitForFunction(
       () => {
         if (document.querySelector('label[for="ParticipantsFamily_FamilyMembers_0__IsParticipating"]') === null || document.querySelector('section.bm-booking-info.bm-restrictions') === null) {
@@ -136,7 +155,7 @@ function refreshAt(hours, minutes, seconds) {
           return true;
         }
       }
-      , { timeout: 0 });
+      , { timeout: 300000 });
     await page.evaluate(() => {
       document.querySelector('a[title="Next"]').click();
     });
